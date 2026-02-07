@@ -148,9 +148,22 @@ export function ImageUploader() {
         } catch (err: any) {
             console.error(err);
             setStatus('error');
-            // カラムがない場合のエラーハンドリングが必要かもしれないが、
-            // まずはユーザー指示通り「UI/Logicを実装」する
-            setMessage(err.message || '登録に失敗しました。');
+
+            // エラーメッセージの日本語化
+            let errorMessage = '予期せぬエラーが発生しました。';
+            const rawMessage = err.message || '';
+
+            if (rawMessage.includes('nationality') && rawMessage.includes('column')) {
+                errorMessage = 'システムエラー: 国籍(nationality)カラムが見つかりません。';
+            } else if (rawMessage.includes('重複エラー')) {
+                errorMessage = rawMessage; // 既に日本語化済み
+            } else if (rawMessage) {
+                // その他のエラーも詳細はコンソールに出しつつ、ユーザーには汎用メッセージを表示
+                // 必要に応じてここに追加
+                errorMessage = `エラー: ${rawMessage}`;
+            }
+
+            setMessage(errorMessage);
         }
     };
 
@@ -217,7 +230,7 @@ export function ImageUploader() {
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     className="w-full p-2 border border-gray-300 rounded text-black bg-white"
-                                    placeholder="例: LionelMessi"
+                                    placeholder="例: リオネル メッシ"
                                 />
                                 <p className="text-xs text-amber-600 mt-1">※全てのスペースは保存時に削除されます。</p>
                             </div>
@@ -230,7 +243,7 @@ export function ImageUploader() {
                                     value={nationality}
                                     onChange={(e) => setNationality(e.target.value)}
                                     className="w-full p-2 border border-gray-300 rounded text-black bg-white"
-                                    placeholder="例: Argentina"
+                                    placeholder="例: アルゼンチン"
                                 />
                                 <p className="text-xs text-amber-600 mt-1">※全てのスペースは保存時に削除されます。</p>
                             </div>
@@ -243,7 +256,7 @@ export function ImageUploader() {
                                     value={team}
                                     onChange={(e) => setTeam(e.target.value)}
                                     className="w-full p-2 border border-gray-300 rounded text-black bg-white"
-                                    placeholder="例: FCBarcelona"
+                                    placeholder="例: FC バルセロナ"
                                 />
                                 <p className="text-xs text-amber-600 mt-1">※全てのスペースは保存時に削除されます。</p>
                             </div>

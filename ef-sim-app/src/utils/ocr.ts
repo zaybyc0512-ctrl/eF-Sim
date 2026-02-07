@@ -86,13 +86,13 @@ export async function analyzeImage(file: File | Blob): Promise<OCRResult> {
   const nameRet = await worker.recognize(nameBlob);
   const nameText = nameRet.data.text.trim();
 
-  // Nationality: チーム名の上部 (国籍・地域)
-  const nationalityBlob = await cropAndProcessImage(file, { x: 0.5, y: 0.22, w: 0.45, h: 0.06 });
+  // Nationality: チーム名の上部 (国籍・地域) - y位置を0.20に上げ、高さを0.05に絞る
+  const nationalityBlob = await cropAndProcessImage(file, { x: 0.5, y: 0.20, w: 0.45, h: 0.05 });
   const nationalityRet = await worker.recognize(nationalityBlob);
   const nationalityText = nationalityRet.data.text.trim();
 
-  // Team: 国籍の下 (高さを0.06に絞って混同回避)
-  const teamBlob = await cropAndProcessImage(file, { x: 0.5, y: 0.30, w: 0.45, h: 0.06 });
+  // Team: 国籍の下 (y位置を0.28に下げて国籍との被りを回避)
+  const teamBlob = await cropAndProcessImage(file, { x: 0.5, y: 0.28, w: 0.45, h: 0.06 });
   const teamRet = await worker.recognize(teamBlob);
   const teamText = teamRet.data.text.trim();
 
