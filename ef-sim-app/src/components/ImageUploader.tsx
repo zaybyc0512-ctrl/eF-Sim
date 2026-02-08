@@ -53,22 +53,27 @@ export function ImageUploader() {
 
             // 3. データ抽出 & プリセット
             // Card Type
+            // 優先順位: 正規表現(extractCardType) > アンカー検索(result.cardTypeText)
             const extractedType = extractCardType(result.fullText);
-            setCardType(extractedType || result.fullText.split('\n')[0] || '');
+            const anchorType = result.cardTypeText ? normalizeString(result.cardTypeText) : '';
+            setCardType(extractedType || anchorType || '');
 
             // Name (Normalized)
+            // OCR側でクリーニング済みだが、念のため正規化を通す
             if (result.nameText) {
                 const normName = normalizeString(result.nameText);
                 setName(normName);
             }
 
             // Nationality (Normalized)
+            // アンカー検索結果を正規化してセット
             if (result.nationalityText) {
                 const normNationality = normalizeString(result.nationalityText);
                 setNationality(normNationality);
             }
 
             // Team (Normalized)
+            // アンカー検索結果を正規化してセット
             if (result.teamText) {
                 const normTeam = normalizeString(result.teamText);
                 setTeam(normTeam);
