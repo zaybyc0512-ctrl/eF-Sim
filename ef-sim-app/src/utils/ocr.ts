@@ -95,7 +95,7 @@ export async function analyzeImage(file: File | Blob): Promise<OCRResult> {
   nameText = nameText.replace(/[^a-zA-Z0-9\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF\s]/g, '');
 
 
-  // 2. Line Parsing (Scan Right Side Area)
+  // 2. Scan Right Side Area
   // 画像の右側70%をスキャンする。見出し文字がグレーなので閾値60
   const rightBlob = await cropAndProcessImage(file, { x: 0.3, y: 0, w: 0.7, h: 1 }, true, 60);
   const rightRet = await worker.recognize(rightBlob);
@@ -145,13 +145,127 @@ export async function analyzeImage(file: File | Blob): Promise<OCRResult> {
   const teamText = findValueByLine(['所', '属', 'ク', 'ラ', 'ブ', 'チ', 'ー', 'ム']);
   const cardTypeTextRaw = findValueByLine(['種', '別']);
 
-  // 日付フォーマット補完: "11 Jan 15" のような末尾2桁の年号にアポストロフィを補完する
-  // パターン: 数字1-2桁 + スペース + 英字3文字 + スペース + 数字2桁 (行末)
-  // 例: "11 Jan 15" -> "11 Jan '15"
+  // 日付フォーマット補完
   let cardTypeText = cardTypeTextRaw.replace(/(\d{1,2})\s+([A-Za-z]{3})\s+(\d{2})$/, "$1 $2 '$3");
 
   await worker.terminate();
   return { fullText, nameText, teamText, nationalityText, cardTypeText };
+}
+
+/**
+ * 能力値認識用の設定パターン
+ */
+/**
+ * 文字列の正規化（OCR揺らぎ吸収用）
+ */
+function normalizeOcrText(text: string): string {
+  if (!text) return '';
+  // 1. 空白の除去
+  let s = text.replace(/[\s\u3000]/g, '');
+
+  // 2. 濁音・半濁音をすべて清音に変換
+  const voicedMap: Record<string, string> = {
+    'ガ': 'カ', 'ギ': 'キ', 'グ': 'ク', 'ゲ': 'ケ', 'ゴ': 'コ',
+    'ザ': 'サ', 'ジ': 'シ', 'ズ': 'ス', 'ゼ': 'セ', 'ゾ': 'ソ',
+    'ダ': 'タ', 'ヂ': 'チ', 'ヅ': 'ツ', 'デ': 'テ', 'ド': 'ト',
+    'バ': 'ハ', 'ビ': 'ヒ', 'ブ': 'フ', 'ベ': 'ヘ', 'ボ': 'ホ',
+    'パ': 'ハ', 'ピ': 'ヒ', 'プ': 'フ', 'ペ': 'ヘ', 'ポ': 'ホ',
+    'ヴ': 'ウ'
+  };
+  s = s.replace(/[ガ-ポヴ]/g, m => voicedMap[m] || m);
+
+  // 3. 小文字を大文字に変換
+  const smallMap: Record<string, string> = {
+    'ァ': 'ア', 'ィ': 'イ', 'ゥ': 'ウ', 'ェ': 'エ', 'ォ': 'オ',
+    'ッ': 'ツ', 'ャ': 'ヤ', 'ュ': 'ユ', 'ョ': 'ヨ'
+  };
+  s = s.replace(/[ァ-ョ]/g, m => smallMap[m] || m);
+
+  // 4. 長音符、ハイフン、漢字の「一」を完全除去
+  s = s.replace(/[ー\-－一]/g, '');
+
+  return s;
+}
+
+/**
+ * 能力値ラベルのエイリアス定義
+ */
+const STAT_ALIASES: Record<string, string[]> = {
+  'offensive_awareness': ['オフェンスセンス'],
+  'ball_control': ['ボールコントロール'],
+  'dribbling': ['ドリブル'],
+  'tight_possession': ['ボールキープ'],
+  'low_pass': ['グラウンダーパス'],
+  'loft_pass': ['フライパス'],
+  'finishing': ['決定力', 'RED', 'REND', 'REN', 'REMD'], // 決定力の誤読対策
+  'heading': ['ヘディング'],
+  'place_kicking': ['プレースキック'],
+  'curl': ['カーブ'],
+  'defensive_awareness': ['ディフェンスセンス'],
+  'tackling': ['ボール奪取'],
+  'aggression': ['アグレッシブネス'],
+  'defensive_engagement': ['守備意識'],
+  'speed': ['スピード'],
+  'acceleration': ['瞬発力'],
+  'kicking_power': ['キック力'],
+  'jump': ['ジャンプ'],
+  'physical_contact': ['フィジカルコンタクト'],
+  'balance': ['ボディコントロール'],
+  'stamina': ['スタミナ'],
+  'gk_awareness': ['GKセンス'],
+  'gk_catching': ['キャッチング'],
+  'gk_clearing': ['クリアリング'],
+  'gk_reflexes': ['コラプシング'],
+  'gk_reach': ['ディフレクティング']
+};
+
+/**
+ * 複数の画像から能力値を読み取って統合する (正規化ロジック適用版)
+ */
+export async function analyzeStatsImages(files: File[]): Promise<Record<string, number>> {
+  const worker = await Tesseract.createWorker('jpn+eng');
+  const mergedStats: Record<string, number> = {};
+
+  for (const file of files) {
+    // リストを読むため、右側全体ではなく「中央〜右」を広く読む
+    // 能力値画面は背景が暗いことが多いので、threshold 60は適切
+    const blob = await cropAndProcessImage(file, { x: 0.1, y: 0, w: 0.9, h: 1 }, true, 60);
+    const ret = await worker.recognize(blob);
+    const lines = ret.data.text.split('\n');
+
+    console.log(`Stats OCR Raw (${file.name}):`, ret.data.text);
+
+    lineLoop: for (const line of lines) {
+      const normalizedLine = normalizeOcrText(line);
+
+      // 補正値（+2など）が数値抽出の邪魔にならないよう除去 (例: "+285" -> "85")
+      const sanitizedLine = normalizedLine.replace(/\+[0-9]/g, '');
+
+      for (const [key, aliases] of Object.entries(STAT_ALIASES)) {
+        if (mergedStats[key] !== undefined) continue; // 既に取得済みならスキップ
+
+        for (const alias of aliases) {
+          const normalizedAlias = normalizeOcrText(alias);
+
+          // 正規化された行の中に、正規化されたラベル(エイリアス)が含まれているか
+          if (sanitizedLine.includes(normalizedAlias)) {
+            // 含まれていれば、2桁か3桁の数値を抽出
+            const match = sanitizedLine.match(/\d{2,3}/);
+            if (match) {
+              const val = parseInt(match[0], 10);
+              if (val >= 40 && val <= 103) {
+                mergedStats[key] = val;
+                continue lineLoop; // この行の処理は終了し、次の行へ
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  await worker.terminate();
+  return mergedStats;
 }
 
 /**

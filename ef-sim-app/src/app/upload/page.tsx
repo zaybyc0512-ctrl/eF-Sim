@@ -1,21 +1,35 @@
-import React from 'react';
+'use client';
+
 import { ImageUploader } from '@/components/ImageUploader';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 
 export default function UploadPage() {
     return (
-        <div className="container mx-auto p-8 max-w-4xl">
-            <h1 className="text-3xl font-bold mb-8 text-gray-800">New Post (OCR Test)</h1>
+        <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-4xl mx-auto">
 
-            <div className="space-y-4 mb-8">
-                <h2 className="text-xl font-semibold">Instructions</h2>
-                <ul className="list-disc list-inside text-gray-600">
-                    <li>Upload an eFootball player screenshot (e.g., from Player Detail screen).</li>
-                    <li>The system will automatically attempt to read the text.</li>
-                    <li>We are specifically looking for card types like <strong>"Big Time 11 Jan '15"</strong> in the debug output.</li>
-                </ul>
+                {/* Back Button */}
+                <div className="mb-6">
+                    <Link href="/" className="inline-flex items-center text-gray-600 hover:text-gray-900 transition">
+                        <ArrowLeft className="w-5 h-5 mr-1" />
+                        トップページに戻る
+                    </Link>
+                </div>
+
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl font-extrabold text-gray-900">
+                        新規選手登録
+                    </h1>
+                    <p className="mt-2 text-gray-500">
+                        スクリーンショットをアップロードして能力値を自動入力します
+                    </p>
+                </div>
+
+                <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+                    <ImageUploader />
+                </div>
             </div>
-
-            <ImageUploader />
         </div>
     );
 }
