@@ -1,4 +1,5 @@
 'use client';
+
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
@@ -6,10 +7,12 @@ import Link from 'next/link';
 import { ArrowLeft, Save, Loader2, Minus, Plus } from 'lucide-react';
 import { SkillSelector } from '@/components/SkillSelector';
 import { PositionMap } from '@/components/PositionMap';
+
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
 const STAT_GROUPS = [
     {
         title: '攻撃',
@@ -58,15 +61,18 @@ const STAT_GROUPS = [
         ]
     },
 ];
+
 export default function EditPlayerPage() {
     const params = useParams();
     const router = useRouter();
     const id = params?.id as string;
+
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState<any>(null);
     const [session, setSession] = useState<any>(null);
     const [userRole, setUserRole] = useState<string | null>(null);
+
     // Auth & Access Control
     useEffect(() => {
         const checkAuth = async () => {
@@ -76,10 +82,12 @@ export default function EditPlayerPage() {
                 return;
             }
             setSession(session);
+
             // Fetch Role
             const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', session.user.id).single();
             const role = roleData?.role || null;
             setUserRole(role);
+
             // Fetch Player
             const { data: player, error } = await supabase.from('players').select('*').eq('id', id).single();
             if (error || !player) {
@@ -87,34 +95,50 @@ export default function EditPlayerPage() {
                 router.replace('/');
                 return;
             }
+
             // Lock Check
             if (player.is_locked && role !== 'admin' && role !== 'developer') {
                 alert('この選手はロックされているため編集できません');
                 router.replace(`/players/${id}`);
                 return;
             }
+
             setFormData(player);
             setLoading(false);
         };
+
         checkAuth();
     }, [id, router]);
+
     const handleChange = (key: string, value: any) => {
         setFormData((prev: any) => ({ ...prev, [key]: value }));
     };
+
     const handleSkillsChange = (newSkills: string[]) => {
         setFormData((prev: any) => ({ ...prev, skills: newSkills }));
     };
+
     const handleSave = async () => {
         if (!confirm('変更を保存しますか？')) return;
         setSaving(true);
         try {
+            // Remove system fields to avoid errors (Explicitly delete generated columns)
+            const updatePayload = { ...formData };
+            delete updatePayload.fingerprint;
+            delete updatePayload.created_at;
+            delete updatePayload.updated_at;
+            delete updatePayload.id;
+            delete updatePayload.edit_history; // CRITICAL: Must be removed
+            delete updatePayload.evidence_url; // No image update in this form
+
             const { error } = await supabase
                 .from('players')
                 .update({
-                    ...formData,
+                    ...updatePayload,
                     updated_at: new Date().toISOString(),
                 })
                 .eq('id', id);
+
             if (error) throw error;
             alert('保存しました');
             router.push(`/players/${id}`);
@@ -125,6 +149,7 @@ export default function EditPlayerPage() {
             setSaving(false);
         }
     };
+
     const StepperInput = ({ label, value, onChange, min = 1, max = 99 }: { label: string, value: number, onChange: (val: number) => void, min?: number, max?: number }) => (
         <div>
             <label className="block text-xs font-bold text-gray-500 mb-1">{label}</label>
@@ -154,7 +179,9 @@ export default function EditPlayerPage() {
             </div>
         </div>
     );
+
     if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
+
     return (
         <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8 font-sans pb-32">
             <div className="mx-auto max-w-4xl">
@@ -175,6 +202,7 @@ export default function EditPlayerPage() {
                         保存する
                     </button>
                 </div>
+
                 <div className="grid grid-cols-1 gap-6">
                     {/* Basic Info */}
                     <div className="bg-white rounded-xl shadow border p-6">
@@ -215,6 +243,7 @@ export default function EditPlayerPage() {
                                 <input type="text" value={formData.playstyle || ''} onChange={e => handleChange('playstyle', e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg text-gray-900 placeholder:text-gray-400 focus:ring-2 focus:ring-blue-500 outline-none" />
                             </div>
                         </div>
+
                         {/* Detailed Props */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 bg-gray-50 p-4 rounded-lg">
                             <div>
@@ -260,6 +289,7 @@ export default function EditPlayerPage() {
                             </div>
                         </div>
                     </div>
+
                     {/* Stats */}
                     <div className="bg-white rounded-xl shadow border p-6">
                         <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">能力値 (Level 1)</h2>
@@ -286,6 +316,7 @@ export default function EditPlayerPage() {
                             ))}
                         </div>
                     </div>
+
                     {/* Positions */}
                     <div className="bg-white rounded-xl shadow border p-6">
                         <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">ポジション適性 (クリックで変更)</h2>
@@ -300,6 +331,7 @@ export default function EditPlayerPage() {
                             ※マスをクリックするごとに「なし」→「準適性」→「本適性」と切り替わります
                         </p>
                     </div>
+
                     {/* Skills */}
                     <div className="bg-white rounded-xl shadow border p-6">
                         <h2 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">所持スキル</h2>
@@ -310,6 +342,7 @@ export default function EditPlayerPage() {
                         />
                     </div>
                 </div>
+
                 <div className="mt-8 flex justify-end gap-4">
                     <Link href={`/players/${id}`} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition">
                         キャンセル

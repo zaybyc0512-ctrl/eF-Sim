@@ -1,14 +1,17 @@
 'use client';
+
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { Search, Plus, User, Database, Loader2 } from 'lucide-react';
 import { GlobalMenu } from '@/components/GlobalMenu';
+
 // Supabase Client Initialization
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
 /**
  * プレイヤーデータの型定義
  */
@@ -20,47 +23,64 @@ type Player = {
   card_type: string;
   evidence_url: string;
   offensive_awareness?: number;
-  // 他の能力値は表示用には必須ではないので省略可、必要に応じて追加
 };
+
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
   // データ取得関数
-  const fetchPlayers = async () => {
+  const fetchPlayers = async (term: string = '') => {
     setLoading(true);
     try {
       let query = supabase
         .from('players')
         .select('*')
         .order('created_at', { ascending: false });
+
       // 検索フィルタ
-      if (searchTerm) {
-        // name, team, nationality のいずれかに部分一致
-        query = query.or(`name.ilike.%${searchTerm}%,team.ilike.%${searchTerm}%,nationality.ilike.%${searchTerm}%`);
+      if (term) {
+        query = query.or(`name.ilike.%${term}%,team.ilike.%${term}%,nationality.ilike.%${term}%`);
       }
+
       const { data, error } = await query;
+
       if (error) throw error;
       setPlayers(data || []);
-    } catch (error) {
-      console.error('Error fetching players:', error);
+    } catch (error: any) {
+      // エラーハンドリング: AbortErrorは無視し、それ以外はログ出力
+      if (error.name !== 'AbortError') {
+        console.error('Error fetching players:', error);
+        // エラー時も空配列をセットして画面をクラッシュさせない
+        setPlayers([]);
+      }
     } finally {
       setLoading(false);
     }
   };
+
   // 初回ロード時 & 検索語変更時にデータ取得
-  // デバウンス処理を入れるとより良いが、今回はシンプルにuseEffectで監視
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchPlayers();
-    }, 300); // 簡易デバウンス
-    return () => clearTimeout(timer);
+    // 検索語がある場合のみデバウンス（遅延）を適用
+    if (searchTerm) {
+      const timer = setTimeout(() => {
+        fetchPlayers(searchTerm);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      // 初期ロードまたは検索クリア時は「即座に」実行（これでAbortErrorを防ぐ）
+      fetchPlayers('');
+    }
   }, [searchTerm]);
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+
       {/* Header Area */}
       <header className="bg-white border-b sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+
           {/* Logo / Title */}
           <div className="flex items-center gap-4 flex-shrink-0">
             <GlobalMenu />
@@ -69,6 +89,7 @@ export default function Home() {
               <h1 className="text-xl font-bold hidden sm:block">eF-Sim</h1>
             </div>
           </div>
+
           {/* Search Bar */}
           <div className="flex-1 max-w-2xl relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -78,10 +99,11 @@ export default function Home() {
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out"
+              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
               placeholder="選手名、チーム名、国籍で検索..."
             />
           </div>
+
           {/* Register Button */}
           <Link
             href="/upload"
@@ -92,8 +114,10 @@ export default function Home() {
           </Link>
         </div>
       </header>
+
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
         {/* Loading State */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-20 text-gray-500">
@@ -101,6 +125,7 @@ export default function Home() {
             <p>データを読み込んでいます...</p>
           </div>
         )}
+
         {/* Empty State */}
         {!loading && players.length === 0 && (
           <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
@@ -114,6 +139,7 @@ export default function Home() {
             </div>
           </div>
         )}
+
         {/* Player Grid */}
         {!loading && players.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -138,19 +164,23 @@ export default function Home() {
                     </span>
                   )}
                 </div>
+
                 {/* Info Area */}
                 <div className="p-4 flex-1 flex flex-col">
                   <h3 className="text-lg font-bold text-gray-900 line-clamp-1 mb-1" title={player.name}>
                     {player.name}
                   </h3>
+
                   <p className="text-sm text-gray-600 line-clamp-1 mb-2" title={player.team}>
                     {player.team || 'No Team'}
                   </p>
+
                   {/* Badge / Stats Preview */}
                   <div className="mt-auto pt-3 border-t flex items-center justify-between">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
                       {player.card_type}
                     </span>
+
                     {/* 簡易ステータス表示 (オフェンスセンスがあれば表示してみる) */}
                     {player.offensive_awareness && (
                       <span className="text-xs font-bold text-gray-500">
