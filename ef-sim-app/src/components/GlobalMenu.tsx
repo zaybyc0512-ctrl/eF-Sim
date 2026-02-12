@@ -140,9 +140,9 @@ export function GlobalMenu() {
                                             </Link>
                                         )}
 
-                                        <Link href="/" onClick={() => setIsOpen(false)} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200">
-                                            <Settings className="w-4 h-4 text-gray-500" />
-                                            マイデータ (準備中)
+                                        <Link href="/my-data" onClick={() => setIsOpen(false)} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200">
+                                            <User className="w-4 h-4 text-gray-500" />
+                                            マイデータ
                                         </Link>
 
                                         <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200">

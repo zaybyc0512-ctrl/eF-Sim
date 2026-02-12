@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient, Session } from '@supabase/supabase-js';
 import { GlobalMenu } from '@/components/GlobalMenu';
 import { PlayerCard } from '@/components/PlayerCard';
 import { Player } from '@/types/player';
-import { Loader2, Save, User } from 'lucide-react';
+import { Loader2, Save, User, Database } from 'lucide-react';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -109,7 +110,17 @@ export default function MyDataPage() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 flex-shrink-0">
                         <GlobalMenu />
-                        <h1 className="text-xl font-bold">マイデータ (準備中)</h1>
+
+                        {/* トップページへのリンク */}
+                        <Link href="/" className="flex items-center gap-2 group">
+                            <Database className="w-6 h-6 text-blue-600 group-hover:text-blue-700 transition" />
+                            <span className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition hidden sm:block">eF-Sim</span>
+                        </Link>
+
+                        {/* 区切り線とページタイトル */}
+                        <div className="flex items-center gap-2 pl-2 border-l border-gray-200 h-8">
+                            <h1 className="text-xl font-bold text-gray-800">マイデータ</h1>
+                        </div>
                     </div>
                 </div>
             </header>
