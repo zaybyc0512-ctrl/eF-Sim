@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import { Search, Plus, User, Database, Loader2 } from 'lucide-react';
+import { Search, Plus, User, Database, Loader2, ChevronDown } from 'lucide-react';
 import { GlobalMenu } from '@/components/GlobalMenu';
+import { PlayerCard } from '@/components/PlayerCard';
+import { Player } from '@/types/player';
 
 // Supabase Client Initialization
 const supabase = createClient(
@@ -12,27 +14,23 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-/**
- * プレイヤーデータの型定義
- */
-type Player = {
-  id: string;
-  name: string;
-  team: string;
-  nationality: string;
-  card_type: string;
-  evidence_url: string;
-  offensive_awareness?: number;
-};
+const PAGE_SIZE = 12;
 
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // データ取得関数
-  const fetchPlayers = async (term: string = '') => {
-    setLoading(true);
+  const fetchPlayers = async (isLoadMore: boolean = false) => {
+    if (isLoadMore) {
+      setIsLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
       let query = supabase
         .from('players')
@@ -40,23 +38,48 @@ export default function Home() {
         .order('created_at', { ascending: false });
 
       // 検索フィルタ
-      if (term) {
-        query = query.or(`name.ilike.%${term}%,team.ilike.%${term}%,nationality.ilike.%${term}%`);
+      if (searchTerm) {
+        query = query.or(`name.ilike.%${searchTerm}%,team.ilike.%${searchTerm}%,nationality.ilike.%${searchTerm}%`);
       }
+
+      // ページネーション範囲指定
+      const start = isLoadMore ? players.length : 0;
+      const end = start + PAGE_SIZE - 1;
+      query = query.range(start, end);
 
       const { data, error } = await query;
 
       if (error) throw error;
-      setPlayers(data || []);
+
+      const newPlayers = data || [];
+
+      if (isLoadMore) {
+        setPlayers((prev) => [...prev, ...newPlayers]);
+      } else {
+        setPlayers(newPlayers);
+      }
+
+      // 次のデータがあるか判定
+      if (newPlayers.length < PAGE_SIZE) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
+
     } catch (error: any) {
       // エラーハンドリング: AbortErrorは無視し、それ以外はログ出力
       if (error.name !== 'AbortError') {
         console.error('Error fetching players:', error);
-        // エラー時も空配列をセットして画面をクラッシュさせない
-        setPlayers([]);
+        if (!isLoadMore) {
+          setPlayers([]);
+        }
       }
     } finally {
-      setLoading(false);
+      if (isLoadMore) {
+        setIsLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -65,14 +88,18 @@ export default function Home() {
     // 検索語がある場合のみデバウンス（遅延）を適用
     if (searchTerm) {
       const timer = setTimeout(() => {
-        fetchPlayers(searchTerm);
+        fetchPlayers(false);
       }, 500);
       return () => clearTimeout(timer);
     } else {
-      // 初期ロードまたは検索クリア時は「即座に」実行（これでAbortErrorを防ぐ）
-      fetchPlayers('');
+      // 初期ロードまたは検索クリア時は「即座に」実行
+      fetchPlayers(false);
     }
   }, [searchTerm]);
+
+  const handleLoadMore = () => {
+    fetchPlayers(true);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
@@ -142,56 +169,36 @@ export default function Home() {
 
         {/* Player Grid */}
         {!loading && players.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {players.map((player) => (
-              <Link
-                href={`/players/${player.id}`}
-                key={player.id}
-                className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow duration-200 overflow-hidden group cursor-pointer flex flex-col"
-              >
-                {/* Image Area (Square) */}
-                <div className="relative aspect-square bg-gray-100 border-b">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={player.evidence_url || '/placeholder.png'}
-                    alt={player.name}
-                    className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-                  />
-                  {/* Nationality Badge (Overlay) */}
-                  {player.nationality && (
-                    <span className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-                      {player.nationality}
-                    </span>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {players.map((player) => (
+                <PlayerCard key={player.id} player={player} />
+              ))}
+            </div>
+
+            {/* Load More Button */}
+            {hasMore && (
+              <div className="mt-8 flex justify-center">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  className="w-full py-3 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      読み込み中...
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="w-5 h-5" />
+                      もっと読み込む
+                    </>
                   )}
-                </div>
-
-                {/* Info Area */}
-                <div className="p-4 flex-1 flex flex-col">
-                  <h3 className="text-lg font-bold text-gray-900 line-clamp-1 mb-1" title={player.name}>
-                    {player.name}
-                  </h3>
-
-                  <p className="text-sm text-gray-600 line-clamp-1 mb-2" title={player.team}>
-                    {player.team || 'No Team'}
-                  </p>
-
-                  {/* Badge / Stats Preview */}
-                  <div className="mt-auto pt-3 border-t flex items-center justify-between">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-                      {player.card_type}
-                    </span>
-
-                    {/* 簡易ステータス表示 (オフェンスセンスがあれば表示してみる) */}
-                    {player.offensive_awareness && (
-                      <span className="text-xs font-bold text-gray-500">
-                        OF: {player.offensive_awareness}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </button>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

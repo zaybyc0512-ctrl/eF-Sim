@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
     ArrowLeft, Loader2, MapPin, Shield, Activity, Zap, Grab,
     RotateCcw, ChevronDown, ChevronUp, X, SlidersHorizontal,
-    TrendingUp, UserCog, Minus, Plus, Play, Trophy, Save, Trash2, FolderOpen, Camera, Lock, Edit
+    TrendingUp, UserCog, Minus, Plus, Play, Trophy, Save, Trash2, FolderOpen, Camera, Lock, Edit, Heart
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { PositionMap } from '@/components/PositionMap';
@@ -97,6 +97,8 @@ const ALL_STATS_FLAT = STAT_GROUPS.flatMap(g => g.items).filter(item =>
 export default function PlayerDetailsPage() {
     const params = useParams();
     const id = params?.id as string;
+    const [isFavorite, setIsFavorite] = useState(false); // Phase 23: Favorite State
+    const [session, setSession] = useState<any>(null); // To store session for Favorite check
 
     const [player, setPlayer] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -118,7 +120,6 @@ export default function PlayerDetailsPage() {
     const [selectedAdditionalBoosterId, setSelectedAdditionalBoosterId] = useState<string>('');
 
     // Phase 19: My Builds State
-    const [session, setSession] = useState<any>(null);
     const [userRole, setUserRole] = useState<string | null>(null);
     const [savedBuilds, setSavedBuilds] = useState<any[]>([]);
     const [newBuildName, setNewBuildName] = useState('');
@@ -398,6 +399,50 @@ export default function PlayerDetailsPage() {
         if (foundCategory) setActiveCategory(foundCategory);
     };
 
+    // セッション取得 & お気に入り状態確認
+    useEffect(() => {
+        const checkSessionAndFavorite = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            setSession(session);
+
+            if (session && id) {
+                const { data } = await supabase
+                    .from('favorites')
+                    .select('id')
+                    .eq('user_id', session.user.id)
+                    .eq('player_id', id)
+                    .single();
+                setIsFavorite(!!data);
+            }
+        };
+        checkSessionAndFavorite();
+    }, [id]);
+
+    const toggleFavorite = async () => {
+        if (!session) {
+            alert('お気に入り機能を使うにはログインが必要です。');
+            return;
+        }
+
+        if (isFavorite) {
+            // Delete
+            const { error } = await supabase
+                .from('favorites')
+                .delete()
+                .eq('user_id', session.user.id)
+                .eq('player_id', id);
+
+            if (!error) setIsFavorite(false);
+        } else {
+            // Insert
+            const { error } = await supabase
+                .from('favorites')
+                .insert({ user_id: session.user.id, player_id: id });
+
+            if (!error) setIsFavorite(true);
+        }
+    };
+
     if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500"><Loader2 className="w-10 h-10 animate-spin mb-4 text-blue-500" /><p>選手データを読み込んでいます...</p></div>;
     if (error || !player) return <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-900"><h1 className="text-2xl font-bold text-gray-800 mb-2">404 Not Found</h1><p className="text-gray-500 mb-6">{error || '指定された選手が見つかりませんでした。'}</p><Link href="/" className="text-blue-600 hover:underline font-bold flex items-center"><ArrowLeft className="w-5 h-5 mr-1" />トップページに戻る</Link></div>;
 
@@ -425,7 +470,18 @@ export default function PlayerDetailsPage() {
                             </div>
                             <div className="text-center w-full relative z-10">
                                 {player.is_locked && <div className={`mb-2 inline-flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-bold border border-red-200 ${isCapturing ? 'hidden' : ''}`}><Lock className="w-3 h-3" /> 公式ロック済み (Read Only)</div>}
-                                <h1 className="text-3xl font-extrabold text-gray-900 mb-2 uppercase break-words leading-tight tracking-tight">{player.name}</h1>
+                                <div className="flex items-center justify-between">
+                                    <h1 className="text-3xl font-extrabold text-gray-900 leading-tight uppercase break-words tracking-tight">{player.name}</h1>
+                                    {/* Phase 23: Favorite Button */}
+                                    {session && (
+                                        <button
+                                            onClick={toggleFavorite}
+                                            className={`p-2 rounded-full border transition-all ${isFavorite ? 'bg-red-50 border-red-200 text-red-500' : 'bg-gray-50 border-gray-200 text-gray-400 hover:text-red-400'}`}
+                                        >
+                                            <Heart className={`w-6 h-6 ${isFavorite ? 'fill-red-500' : ''}`} />
+                                        </button>
+                                    )}
+                                </div>
                                 <span className="inline-block bg-gradient-to-r from-blue-600 to-blue-500 text-white text-sm font-bold px-4 py-1.5 rounded-full mb-6 shadow-md shadow-blue-200">{player.card_type}</span>
 
                                 <div className={`flex flex-col gap-2 mb-4 w-full ${isCapturing ? 'hidden' : ''}`}>
@@ -485,7 +541,7 @@ export default function PlayerDetailsPage() {
                                     <div className="p-6 pt-0 border-t border-gray-100 bg-indigo-50/10">
                                         <div className="mt-4 space-y-4">
                                             <div className="flex gap-2">
-                                                <input type="text" placeholder="ビルド名 (例: スパサブ用, OMF型)" value={newBuildName} onChange={(e) => setNewBuildName(e.target.value)} className="flex-1 p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
+                                                <input type="text" placeholder="ビルド名 (例: スパサブ用, OMF型)" value={newBuildName} onChange={(e) => setNewBuildName(e.target.value)} className="flex-1 p-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 outline-none" />
                                                 <button onClick={handleSaveBuild} disabled={isSavingBuild || !newBuildName} className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition flex items-center gap-1 text-sm"><Save className="w-4 h-4" /> 保存</button>
                                             </div>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto scrollbar-thin pr-1">
