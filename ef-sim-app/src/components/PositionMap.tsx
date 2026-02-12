@@ -17,6 +17,7 @@ interface PositionMapProps {
     value?: Record<string, number>; // 0: None, 1: Semi, 2: Full
     onChange?: (newValue: Record<string, number>) => void;
     readonly?: boolean;
+    editable?: boolean;
 }
 
 const POSITION_LAYOUT: { key: PositionKey; label: string; row: number; col: number }[] = [
@@ -41,10 +42,13 @@ const POSITION_LAYOUT: { key: PositionKey; label: string; row: number; col: numb
     { key: 'GK', label: 'GK', row: 7, col: 2 },
 ];
 
-export function PositionMap({ value = {}, onChange, readonly = false }: PositionMapProps) {
+export function PositionMap({ value = {}, onChange, readonly = false, editable = false }: PositionMapProps) {
+
+    // editableがtrueならreadonlyはfalseとみなす (逆もまた然りだが、明示的なeditableを優先)
+    const isReadOnly = readonly && !editable;
 
     const handleClick = (key: string) => {
-        if (readonly || !onChange) return;
+        if (isReadOnly || !onChange) return;
 
         const currentVal = value[key] || 0;
         const nextVal = (currentVal + 1) % 3; // 0 -> 1 -> 2 -> 0
@@ -79,7 +83,7 @@ export function PositionMap({ value = {}, onChange, readonly = false }: Position
                                 flex items-center justify-center text-xs rounded border cursor-pointer select-none
                                 transition-all duration-200 h-8 w-full
                                 ${getColorClass(status)}
-                                ${readonly ? 'cursor-default' : 'active:scale-95'}
+                                ${isReadOnly ? 'cursor-default' : 'cursor-pointer active:scale-95'}
                             `}
                             style={{
                                 gridRow: pos.row,
@@ -91,7 +95,7 @@ export function PositionMap({ value = {}, onChange, readonly = false }: Position
                     );
                 })}
             </div>
-            {!readonly && (
+            {!isReadOnly && (
                 <div className="mt-2 flex justify-center gap-4 text-[10px] text-gray-400">
                     <div className="flex items-center gap-1"><div className="w-3 h-3 bg-gray-800 border border-gray-700"></div>なし</div>
                     <div className="flex items-center gap-1"><div className="w-3 h-3 bg-lime-200 border border-lime-300"></div>準適性</div>

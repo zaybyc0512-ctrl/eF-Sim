@@ -3,24 +3,73 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
-import { Menu, X, User, LogOut, Settings, Twitter, ExternalLink, Heart } from 'lucide-react';
+import { Menu, X, User, LogOut, Settings, Twitter, ExternalLink, Heart, Loader2 } from 'lucide-react';
+import { createClient, Session } from '@supabase/supabase-js';
+import { AuthModal } from './AuthModal';
+import { DonationBanner } from './DonationBanner'; // Phase 22
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export function GlobalMenu() {
     const [isOpen, setIsOpen] = useState(false);
-    const [isLoggedIn, setIsLoggedIn] = useState(true); // 仮の状態: 実際はAuth Context等から取得
+    const [session, setSession] = useState<Session | null>(null);
     const [mounted, setMounted] = useState(false);
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [userRole, setUserRole] = useState<string | null>(null); // Phase 21: User Role
 
     useEffect(() => {
         setMounted(true);
+
+        const fetchRole = async (uid: string) => {
+            const { data } = await supabase.from('user_roles').select('role').eq('user_id', uid).single();
+            if (data) setUserRole(data.role);
+            else setUserRole(null);
+        };
+
+        // Get initial session
+        supabase.auth.getSession().then(async ({ data: { session } }) => {
+            setSession(session);
+            // Phase 21: Fetch User Role
+            if (session?.user) {
+                await fetchRole(session.user.id);
+            }
+            setLoading(false);
+            console.log('Initial Session:', session);
+        });
+
+        // Listen for auth changes
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            setSession(session);
+            if (session?.user) {
+                await fetchRole(session.user.id);
+            } else {
+                setUserRole(null);
+            }
+            setLoading(false);
+            console.log('Auth State Changed:', session);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
     const toggleMenu = () => setIsOpen(!isOpen);
 
-    const handleLogout = () => {
-        // ログアウト処理(仮)
-        setIsLoggedIn(false);
-        alert('Logged out (Demo)');
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        setIsOpen(false);
     };
+
+    // Get user display info
+    const user = session?.user;
+    const avatarUrl = user?.user_metadata?.avatar_url;
+    const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+    const email = user?.email;
 
     return (
         <>
@@ -61,28 +110,54 @@ export function GlobalMenu() {
                             {/* Left Column: Account */}
                             <div className="space-y-4">
                                 <h3 className="text-sm font-bold text-gray-500 uppercase text-xs tracking-wider border-b pb-2">Account</h3>
-                                {isLoggedIn ? (
+
+                                {loading ? (
+                                    <div className="flex justify-center p-4">
+                                        <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                                    </div>
+                                ) : session ? (
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 text-blue-700 border border-blue-100">
-                                            <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center shrink-0">
-                                                <User className="w-5 h-5" />
-                                            </div>
+                                            {avatarUrl ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img src={avatarUrl} alt={userName} className="w-10 h-10 rounded-full object-cover border border-blue-200" />
+                                            ) : (
+                                                <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center shrink-0 font-bold text-blue-600 border border-blue-300">
+                                                    {userName.charAt(0).toUpperCase()}
+                                                </div>
+                                            )}
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-bold truncate">Demo User</p>
-                                                <p className="text-xs text-blue-500 truncate">user@example.com</p>
+                                                <p className="text-sm font-bold truncate">{userName}</p>
+                                                <p className="text-xs text-blue-500 truncate">{email}</p>
                                             </div>
                                         </div>
+
+                                        {/* Phase 21: Admin Dashboard Link */}
+                                        {['admin', 'developer'].includes(userRole || '') && (
+                                            <Link href="/admin" onClick={() => setIsOpen(false)} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-bold text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors shadow-md shadow-gray-400">
+                                                <Settings className="w-4 h-4" />
+                                                🛠️ 管理者ダッシュボード
+                                            </Link>
+                                        )}
+
+                                        <Link href="/" onClick={() => setIsOpen(false)} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200">
+                                            <Settings className="w-4 h-4 text-gray-500" />
+                                            マイデータ (準備中)
+                                        </Link>
+
                                         <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors border border-transparent hover:border-gray-200">
                                             <LogOut className="w-4 h-4" />
                                             Sign Out
                                         </button>
-                                        <button className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100">
-                                            <Settings className="w-4 h-4" />
-                                            Delete Account
-                                        </button>
                                     </div>
                                 ) : (
-                                    <button className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition shadow-md shadow-blue-200">
+                                    <button
+                                        onClick={() => {
+                                            setIsOpen(false);
+                                            setIsAuthModalOpen(true);
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition shadow-md shadow-blue-200"
+                                    >
                                         <User className="w-4 h-4" />
                                         Sign In / Sign Up
                                     </button>
@@ -96,22 +171,23 @@ export function GlobalMenu() {
                                     <h3 className="text-sm font-bold text-gray-500 uppercase text-xs tracking-wider border-b pb-2">Community</h3>
                                     <div className="space-y-2">
                                         <a
-                                            href="https://twitter.com"
+                                            href="https://x.com/Xv2UFh3LZzGJAqH"
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-100 hover:border-gray-300"
                                         >
-                                            <Twitter className="w-4 h-4 text-blue-400" />
-                                            Official X (Twitter)
+                                            <Twitter className="w-4 h-4 text-black" />
+                                            Official X
                                         </a>
                                         <a
-                                            href="https://discord.com"
+                                            href="https://wick-sns.com/sns/profile/00477145-972e-4882-b38a-c0b01aeadb8b"
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-100 hover:border-gray-300"
                                         >
-                                            <ExternalLink className="w-4 h-4 text-indigo-500" />
-                                            Join Discord
+                                            {/* Generic Globe icon for Wick as requested, keeping styling consistent with X */}
+                                            <div className="w-4 h-4 flex items-center justify-center bg-gray-200 rounded-full text-[10px] font-bold text-gray-600">W</div>
+                                            Wick
                                         </a>
                                     </div>
                                 </div>
@@ -119,13 +195,9 @@ export function GlobalMenu() {
                                 {/* Support */}
                                 <div className="space-y-3">
                                     <h3 className="text-sm font-bold text-gray-500 uppercase text-xs tracking-wider border-b pb-2">Support</h3>
-                                    <a
-                                        href="#"
-                                        className="flex items-center gap-3 px-3 py-2 text-sm font-bold text-pink-600 bg-pink-50 hover:bg-pink-100 rounded-lg transition-colors border border-pink-100 hover:border-pink-200"
-                                    >
-                                        <Heart className="w-4 h-4 fill-pink-600" />
-                                        Donation (Doneru)
-                                    </a>
+                                    <div className="w-full transform hover:scale-[1.02] transition-transform duration-200">
+                                        <DonationBanner />
+                                    </div>
                                 </div>
                             </div>
 
@@ -139,6 +211,9 @@ export function GlobalMenu() {
                 </div>,
                 document.body
             )}
+
+            {/* Auth Modal */}
+            <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
         </>
     );
 }

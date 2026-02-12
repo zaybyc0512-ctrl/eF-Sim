@@ -20,6 +20,7 @@ interface AutoAllocateModalProps {
     statGroups: any[];
     managerProficiency: number;
     boostedStats: string[];
+    staticBoosterBonuses: Record<string, number>;
 }
 
 interface Goal {
@@ -33,7 +34,7 @@ interface Preset {
     goals: Goal[];
 }
 
-export function AutoAllocateModal({ isOpen, onClose, player, totalPoints, onApply, progressionMap, statGroups, managerProficiency, boostedStats }: AutoAllocateModalProps) {
+export function AutoAllocateModal({ isOpen, onClose, player, totalPoints, onApply, progressionMap, statGroups, managerProficiency, boostedStats, staticBoosterBonuses }: AutoAllocateModalProps) {
     const [goals, setGoals] = useState<Goal[]>([{ stat: 'speed', target: 90 }]);
     const [presets, setPresets] = useState<Preset[]>([]);
     const [presetName, setPresetName] = useState('');
@@ -128,8 +129,9 @@ export function AutoAllocateModal({ isOpen, onClose, player, totalPoints, onAppl
                 if (!['weak_foot_usage', 'weak_foot_accuracy', 'form', 'injury_resistance'].includes(statKey)) {
                     proficiencyBoostVal = calculateManagerBoost(talentVal, managerProficiency);
                 }
-                // ブースター補正
-                const boosterBonusVal = boostedStats.includes(statKey) ? 1 : 0;
+
+                // ブースター補正 (事前計算された値を加算)
+                const boosterBonusVal = staticBoosterBonuses[statKey] || 0;
 
                 return Math.min(99, talentVal + proficiencyBoostVal + boosterBonusVal);
             };
