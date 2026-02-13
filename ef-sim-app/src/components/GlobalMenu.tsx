@@ -19,39 +19,43 @@ export function GlobalMenu() {
 
     useEffect(() => {
         setMounted(true);
+        let mounted = true;
 
         const fetchRole = async (uid: string) => {
             const { data } = await supabase.from('user_roles').select('role').eq('user_id', uid).single();
-            if (data) setUserRole(data.role);
-            else setUserRole(null);
+            if (mounted) {
+                if (data) setUserRole(data.role);
+                else setUserRole(null);
+            }
         };
 
-        // Get initial session
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            setSession(session);
-            // Phase 21: Fetch User Role
-            if (session?.user) {
-                await fetchRole(session.user.id);
-            }
-            setLoading(false);
-            console.log('Initial Session:', session);
-        });
-
-        // Listen for auth changes
+        // 1. リスナーで監視 (これ一本にする) - onAuthStateChangeは登録直後に現在のセッションでも発火する
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (!mounted) return;
             setSession(session);
             if (session?.user) {
                 await fetchRole(session.user.id);
             } else {
                 setUserRole(null);
             }
-            setLoading(false);
-            console.log('Auth State Changed:', session);
+            // 判定完了
+            if (mounted) setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        // 2. 救済タイマー (2秒後には必ずメニューを表示させる・ローディングを解除)
+        const timer = setTimeout(() => {
+            if (mounted) {
+                setLoading(false);
+            }
+        }, 2000);
+
+        return () => {
+            mounted = false;
+            clearTimeout(timer);
+            subscription.unsubscribe();
+        };
     }, []);
 
     const toggleMenu = () => setIsOpen(!isOpen);
