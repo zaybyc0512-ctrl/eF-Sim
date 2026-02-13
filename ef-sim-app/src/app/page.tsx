@@ -21,6 +21,7 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
 
   // 通信キャンセル用のコントローラーを保持
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -101,7 +102,22 @@ export default function Home() {
     }
   };
 
+  // 認証チェックを最初に行う
   useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        await supabase.auth.getSession();
+      } finally {
+        setIsAuthChecked(true);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    // 認証チェックが終わっていない、または検索語の入力中は実行しない
+    if (!isAuthChecked) return;
+
     // 検索語がある場合はデバウンス、なければ即時実行
     const timer = setTimeout(() => {
       fetchPlayers(false);
@@ -113,7 +129,7 @@ export default function Home() {
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm]);
+  }, [searchTerm, isAuthChecked]);
 
   const handleLoadMore = () => {
     fetchPlayers(true);
@@ -150,14 +166,14 @@ export default function Home() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {loading && (
+        {(!isAuthChecked || loading) && (
           <div className="flex flex-col items-center justify-center py-20 text-gray-500">
             <Loader2 className="w-10 h-10 animate-spin mb-4 text-blue-500" />
             <p>データを読み込んでいます...</p>
           </div>
         )}
 
-        {!loading && players.length === 0 && (
+        {isAuthChecked && !loading && players.length === 0 && (
           <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
             <User className="w-16 h-16 mx-auto text-gray-300 mb-4" />
             <h3 className="text-lg font-medium text-gray-900">データが見つかりません</h3>
@@ -165,7 +181,7 @@ export default function Home() {
           </div>
         )}
 
-        {!loading && players.length > 0 && (
+        {isAuthChecked && !loading && players.length > 0 && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {players.map((player) => (
