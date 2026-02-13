@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import Cropper from 'react-easy-crop'; // Phase 10
 import { analyzeImage, extractCardType, analyzeStatsImages } from '@/utils/ocr';
 import getCroppedImg from '@/utils/canvasUtils'; // Phase 10
@@ -98,10 +98,7 @@ const NumberStepper = ({
     );
 };
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Singleton usage
 
 /**
  * UI表示用の能力値リスト (STAT_MAPの逆引き + グループ化用)

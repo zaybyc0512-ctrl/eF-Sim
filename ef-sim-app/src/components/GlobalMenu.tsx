@@ -4,14 +4,10 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Menu, X, User, LogOut, Settings, Twitter, ExternalLink, Heart, Loader2 } from 'lucide-react';
-import { createClient, Session } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { AuthModal } from './AuthModal';
 import { DonationBanner } from './DonationBanner'; // Phase 22
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export function GlobalMenu() {
     const [isOpen, setIsOpen] = useState(false);
