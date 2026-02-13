@@ -102,12 +102,23 @@ export default function Home() {
 
   // 認証チェックを最初に行う
   useEffect(() => {
-    // 認証状態の変化を監視（初期化時にも発火するため、これでロード完了とする）
+    let mounted = true;
+
+    // 1. 正規のルート: 認証状態の変化を監視
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      setIsAuthChecked(true);
+      if (mounted) setIsAuthChecked(true);
     });
 
+    // 2. 救済ルート: 1秒経っても反応がなければ強制的に完了とする（既ログイン時のイベント不発対策）
+    const timer = setTimeout(() => {
+      if (mounted) {
+        setIsAuthChecked(true);
+      }
+    }, 1000);
+
     return () => {
+      mounted = false;
+      clearTimeout(timer);
       subscription.unsubscribe();
     };
   }, []);
