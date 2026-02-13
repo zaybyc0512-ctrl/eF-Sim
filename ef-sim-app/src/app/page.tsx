@@ -102,14 +102,14 @@ export default function Home() {
 
   // 認証チェックを最初に行う
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        await supabase.auth.getSession();
-      } finally {
-        setIsAuthChecked(true);
-      }
+    // 認証状態の変化を監視（初期化時にも発火するため、これでロード完了とする）
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      setIsAuthChecked(true);
+    });
+
+    return () => {
+      subscription.unsubscribe();
     };
-    checkAuth();
   }, []);
 
   useEffect(() => {
