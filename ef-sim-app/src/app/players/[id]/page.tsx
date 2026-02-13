@@ -97,8 +97,8 @@ const ALL_STATS_FLAT = STAT_GROUPS.flatMap(g => g.items).filter(item =>
 export default function PlayerDetailsPage() {
     const params = useParams();
     const id = params?.id as string;
-    const [isFavorite, setIsFavorite] = useState(false); // Phase 23: Favorite State
-    const [session, setSession] = useState<any>(null); // To store session for Favorite check
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [session, setSession] = useState<any>(null);
 
     const [player, setPlayer] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -497,6 +497,17 @@ export default function PlayerDetailsPage() {
                                     )}
                                 </div>
 
+                                {/* Player Physical & Basic Info */}
+                                <div className="flex flex-col gap-2 text-sm text-gray-600 border-t border-gray-100 pt-4 w-full mb-2">
+                                    <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">身長/年齢</span> <span className="font-bold">{player.height}cm / {player.age}歳</span></div>
+                                    <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">利き足</span> <span className="font-bold">{player.foot}</span></div>
+                                    <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">プレースタイル</span> <span className="font-bold text-blue-600">{player.playstyle}</span></div>
+                                    <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">逆足頻度</span> <span className="font-bold">{player.weak_foot_usage}</span></div>
+                                    <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">逆足精度</span> <span className="font-bold">{player.weak_foot_accuracy}</span></div>
+                                    <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">調子の波</span> <span className="font-bold">{player.form}</span></div>
+                                    <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">怪我耐性</span> <span className="font-bold">{player.injury_resistance}</span></div>
+                                </div>
+
                                 <div className="flex flex-col gap-3 text-sm text-gray-600 border-t border-gray-100 pt-5 w-full">
                                     <div className="flex items-center justify-between"><span className="font-bold flex items-center gap-2 text-gray-500"><Activity className="w-4 h-4 text-gray-400" /> レベル</span><span className="text-right truncate ml-2 font-mono font-bold text-lg text-gray-800">{player.max_level || 1}</span></div>
                                     <div className="flex items-center justify-between"><span className="font-bold flex items-center gap-2 text-gray-500"><MapPin className="w-4 h-4 text-gray-400" /> 所属チーム</span><span className="text-right truncate ml-2 font-medium">{player.team}</span></div>
@@ -587,10 +598,97 @@ export default function PlayerDetailsPage() {
                             {isManagerBoostOpen && (
                                 <div className="p-6 pt-0 border-t border-gray-100 bg-purple-50/10">
                                     <div className="mt-4 space-y-6">
-                                        {player.custom_booster?.[0] && (<div className="bg-white p-3 rounded-lg border border-purple-200 shadow-sm"><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><span className="text-xs font-bold text-pink-600 uppercase tracking-wider flex items-center gap-1"><Zap className="w-3 h-3" /> 個別ブースター</span><label className="flex items-center cursor-pointer"><input type="checkbox" checked={isUniqueBoosterActive} onChange={(e) => setIsUniqueBoosterActive(e.target.checked)} className="form-checkbox h-4 w-4 text-purple-600 rounded" /></label></div><div className="flex items-center justify-between bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden w-24"><button onClick={() => setActiveUniqueValue(Math.max(0, activeUniqueValue - 1))} className="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600 border-r border-gray-100"><Minus className="w-4 h-4" /></button><span className="flex-1 text-center font-mono font-bold text-lg text-gray-800">{activeUniqueValue}</span><button onClick={() => setActiveUniqueValue(Math.min(99, activeUniqueValue + 1))} className="w-8 h-8 flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-600 border-l border-blue-100"><Plus className="w-4 h-4" /></button></div></div></div>)}
-                                        <div><div className="flex items-center justify-between mb-1"><label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">追加ブースター (+1)</label><label className="flex items-center cursor-pointer"><input type="checkbox" checked={isAdditionalBoosterActive} onChange={(e) => setIsAdditionalBoosterActive(e.target.checked)} className="form-checkbox h-4 w-4 text-purple-600 rounded" /></label></div><select value={selectedAdditionalBoosterId} onChange={(e) => setSelectedAdditionalBoosterId(e.target.value)} className={`w-full p-2 border border-gray-300 rounded-lg text-sm bg-white font-medium ${!isAdditionalBoosterActive ? 'opacity-50' : ''}`}><option value="">-- なし --</option>{normalBoosters.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
+                                        {player.custom_booster?.[0] && (
+                                            <div className="bg-white p-3 rounded-lg border border-purple-200 shadow-sm">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-pink-600 uppercase tracking-wider flex items-center gap-1"><Zap className="w-3 h-3" /> 個別ブースター</span>
+                                                        <label className="flex items-center cursor-pointer"><input type="checkbox" checked={isUniqueBoosterActive} onChange={(e) => setIsUniqueBoosterActive(e.target.checked)} className="form-checkbox h-4 w-4 text-purple-600 rounded focus:ring-purple-500" /></label>
+                                                    </div>
+                                                    {/* Value Stepper */}
+                                                    <div className="flex items-center justify-between bg-white rounded-md border border-gray-200 shadow-sm overflow-hidden w-24">
+                                                        <button onClick={() => setActiveUniqueValue(Math.max(0, activeUniqueValue - 1))} className="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600 border-r border-gray-100 transition-colors"><Minus className="w-4 h-4" /></button>
+                                                        <span className="flex-1 text-center font-mono font-bold text-lg text-gray-800">{activeUniqueValue}</span>
+                                                        <button onClick={() => setActiveUniqueValue(Math.min(99, activeUniqueValue + 1))} className="w-8 h-8 flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-600 border-l border-blue-100 transition-colors"><Plus className="w-4 h-4" /></button>
+                                                    </div>
+                                                </div>
+                                                {/* Booster Details */}
+                                                <div className="mt-2 pt-2 border-t border-purple-50">
+                                                    <div className="font-bold text-gray-800 text-sm">{player.custom_booster[0].name}</div>
+                                                    <div className="text-xs text-gray-500 mt-0.5">
+                                                        対象: {Array.isArray(player.custom_booster[0].targets) ? STAT_GROUPS.flatMap(g => g.items).filter(i => player.custom_booster[0].targets.includes(i.key)).map(i => i.label).join(', ') : '全能力'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            <div className="flex items-center justify-between mb-1">
+                                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">追加ブースター (+1)</label>
+                                                <label className="flex items-center cursor-pointer"><input type="checkbox" checked={isAdditionalBoosterActive} onChange={(e) => setIsAdditionalBoosterActive(e.target.checked)} className="form-checkbox h-4 w-4 text-purple-600 rounded" /></label>
+                                            </div>
+                                            <select
+                                                value={selectedAdditionalBoosterId}
+                                                onChange={(e) => setSelectedAdditionalBoosterId(e.target.value)}
+                                                className={`w-full p-2 border border-gray-300 rounded-lg text-sm bg-white font-medium text-gray-900 ${!isAdditionalBoosterActive ? 'opacity-50' : ''}`}
+                                            >
+                                                <option value="">-- なし --</option>
+                                                {normalBoosters.map((b) => (<option key={b.id} value={b.id}>{b.name}</option>))}
+                                            </select>
+                                        </div>
+
                                         <div className="border-t border-purple-100 my-2"></div>
-                                        <div className="relative"><div className="absolute -top-3 right-0"><label className="flex items-center gap-1 cursor-pointer bg-white px-2 rounded-full border border-gray-200"><span className="text-[10px] font-bold text-gray-400">監督補正ON/OFF</span><input type="checkbox" checked={isManagerBoostActive} onChange={(e) => setIsManagerBoostActive(e.target.checked)} className="form-checkbox h-4 w-4 text-purple-600 rounded" /></label></div><div className={`transition-opacity duration-200 ${!isManagerBoostActive ? 'opacity-50 pointer-events-none' : ''}`}><label className="block text-sm font-bold text-gray-700 mb-2">チームスタイル適正 (85 ~ 89)</label><div className="flex items-center gap-4"><input type="range" min="85" max="89" step="1" value={managerProficiency} onChange={(e) => setManagerProficiency(Number(e.target.value))} className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600" /><span className="text-xl font-bold font-mono text-purple-600 w-12 text-center">{managerProficiency}</span></div></div></div>
+                                        <div className="relative p-3 bg-white rounded-lg border border-purple-100 shadow-sm">
+                                            <div className="absolute -top-3 right-2">
+                                                <label className="flex items-center gap-1 cursor-pointer bg-white px-2 rounded-full border border-gray-200 shadow-sm">
+                                                    <span className="text-[10px] font-bold text-gray-500">監督補正有効</span>
+                                                    <input type="checkbox" checked={isManagerBoostActive} onChange={(e) => setIsManagerBoostActive(e.target.checked)} className="form-checkbox h-3.5 w-3.5 text-purple-600 rounded focus:ring-purple-500" />
+                                                </label>
+                                            </div>
+
+                                            <div className={`space-y-4 transition-opacity duration-200 ${!isManagerBoostActive ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                {/* Boosted Stats Selectors */}
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">強化する能力 (+1)</label>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {[0, 1].map((index) => (
+                                                            <select
+                                                                key={index}
+                                                                value={boostedStats[index]}
+                                                                onChange={(e) => handleBoostStatChange(index, e.target.value)}
+                                                                className="w-full p-1.5 border border-purple-200 rounded-md text-xs font-bold text-gray-700 bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                                            >
+                                                                <option value="">選択なし</option>
+                                                                {ALL_STATS_FLAT.map(stat => (
+                                                                    <option key={stat.key} value={stat.key}>{stat.label}</option>
+                                                                ))}
+                                                            </select>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Proficiency Slider */}
+                                                <div>
+                                                    <div className="flex justify-between items-center mb-1">
+                                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">チームスタイル適正</label>
+                                                        <span className="text-lg font-mono font-bold text-purple-600">{managerProficiency}</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min="85"
+                                                        max="89"
+                                                        step="1"
+                                                        value={managerProficiency}
+                                                        onChange={(e) => setManagerProficiency(Number(e.target.value))}
+                                                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                                                    />
+                                                    <div className="flex justify-between text-[10px] text-gray-400 mt-1 font-mono">
+                                                        <span>85 (通常)</span>
+                                                        <span>88 (監督ブースター)</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             )}

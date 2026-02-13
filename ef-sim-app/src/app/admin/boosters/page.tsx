@@ -27,6 +27,35 @@ const ALL_STATS = [
     'gk_awareness', 'gk_catching', 'gk_clearing', 'gk_reflexes', 'gk_reach'
 ];
 
+const STAT_LABELS: Record<string, string> = {
+    offensive_awareness: 'オフェンスセンス',
+    ball_control: 'ボールコントロール',
+    dribbling: 'ドリブル',
+    tight_possession: 'ボールキープ',
+    low_pass: 'グラウンダーパス',
+    loft_pass: 'フライパス',
+    finishing: '決定力',
+    heading: 'ヘディング',
+    place_kicking: 'プレースキック',
+    curl: 'カーブ',
+    defensive_awareness: 'ディフェンスセンス',
+    tackling: 'ボール奪取',
+    aggression: 'アグレッシブネス',
+    defensive_engagement: '守備意識',
+    speed: 'スピード',
+    acceleration: '瞬発力',
+    kicking_power: 'キック力',
+    jump: 'ジャンプ',
+    physical_contact: 'フィジカルコンタクト',
+    balance: 'ボディコントロール',
+    stamina: 'スタミナ',
+    gk_awareness: 'GKセンス',
+    gk_catching: 'キャッチング',
+    gk_clearing: 'クリアリング',
+    gk_reflexes: 'コラプシング',
+    gk_reach: 'ディフレクティング',
+};
+
 export default function AdminBoostersPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
@@ -200,7 +229,7 @@ export default function AdminBoostersPage() {
                                                 onChange={() => handleTargetChange(stat)}
                                                 className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                                             />
-                                            <span className="truncate">{stat}</span>
+                                            <span className="truncate">{STAT_LABELS[stat] || stat}</span>
                                         </label>
                                     ))}
                                 </div>
@@ -233,8 +262,8 @@ export default function AdminBoostersPage() {
                                         <td className="px-6 py-4 font-bold text-gray-900">{b.name}</td>
                                         <td className="px-6 py-4">
                                             <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${b.type === 'special' ? 'bg-amber-100 text-amber-800 border-amber-200' :
-                                                    b.type === 'squad_link' ? 'bg-purple-100 text-purple-800 border-purple-200' :
-                                                        'bg-gray-100 text-gray-600 border-gray-200'
+                                                b.type === 'squad_link' ? 'bg-purple-100 text-purple-800 border-purple-200' :
+                                                    'bg-gray-100 text-gray-600 border-gray-200'
                                                 }`}>
                                                 {b.type}
                                             </span>
