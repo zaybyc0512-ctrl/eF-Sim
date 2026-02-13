@@ -21,6 +21,35 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const STAT_LABELS: Record<string, string> = {
+    offensive_awareness: 'オフェンスセンス',
+    ball_control: 'ボールコントロール',
+    dribbling: 'ドリブル',
+    tight_possession: 'ボールキープ',
+    low_pass: 'グラウンダーパス',
+    loft_pass: 'フライパス',
+    finishing: '決定力',
+    heading: 'ヘディング',
+    place_kicking: 'プレースキック',
+    curl: 'カーブ',
+    defensive_awareness: 'ディフェンスセンス',
+    tackling: 'ボール奪取',
+    aggression: 'アグレッシブネス',
+    defensive_engagement: '守備意識',
+    speed: 'スピード',
+    acceleration: '瞬発力',
+    kicking_power: 'キック力',
+    jump: 'ジャンプ',
+    physical_contact: 'フィジカルコンタクト',
+    balance: 'ボディコントロール',
+    stamina: 'スタミナ',
+    gk_awareness: 'GKセンス',
+    gk_catching: 'キャッチング',
+    gk_clearing: 'クリアリング',
+    gk_reflexes: 'コラプシング',
+    gk_reach: 'ディフレクティング',
+};
+
 // UI表示用の能力値リスト
 const STAT_GROUPS = [
     {
@@ -126,6 +155,11 @@ export default function PlayerDetailsPage() {
     const [isMyBuildsOpen, setIsMyBuildsOpen] = useState(true);
     const [isSavingBuild, setIsSavingBuild] = useState(false);
 
+    // Phase 24: Skill Presets State
+    const [skillPresets, setSkillPresets] = useState<any[]>([]);
+    const [selectedPresetId, setSelectedPresetId] = useState<string>('');
+    const [newPresetName, setNewPresetName] = useState('');
+
     // Phase 19 Step 4: Share Build State
     const [isCapturing, setIsCapturing] = useState(false);
 
@@ -180,7 +214,7 @@ export default function PlayerDetailsPage() {
         fetchPlayer_and_Boosters();
     }, [id]);
 
-    // Fetch Session & Builds
+    // Fetch Session & Builds & Skill Presets
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
@@ -214,8 +248,10 @@ export default function PlayerDetailsPage() {
     useEffect(() => {
         if (session?.user && id) {
             fetchSavedBuilds();
+            fetchSkillPresets();
         } else {
             setSavedBuilds([]);
+            setSkillPresets([]);
         }
     }, [session, id]);
 
@@ -229,6 +265,12 @@ export default function PlayerDetailsPage() {
             .order('created_at', { ascending: false });
 
         if (data) setSavedBuilds(data);
+    };
+
+    const fetchSkillPresets = async () => {
+        if (!session?.user) return;
+        const { data } = await supabase.from('user_skill_presets').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
+        if (data) setSkillPresets(data);
     };
 
     const handleSaveBuild = async () => {
@@ -278,6 +320,51 @@ export default function PlayerDetailsPage() {
             fetchSavedBuilds();
         } else {
             alert('削除に失敗しました');
+        }
+    };
+
+    // Skill Presets Handlers
+    const handleSavePreset = async () => {
+        if (!newPresetName.trim()) return alert('プリセット名を入力してください');
+        if (!session?.user) return;
+        if (!player.skills || player.skills.length === 0) return alert('スキルがありません');
+
+        const { error } = await supabase.from('user_skill_presets').insert({
+            user_id: session.user.id,
+            preset_name: newPresetName,
+            skills: player.skills
+        });
+
+        if (error) {
+            console.error(error);
+            alert('保存に失敗しました');
+        } else {
+            alert('スキルのプリセットを保存しました');
+            setNewPresetName('');
+            fetchSkillPresets();
+        }
+    };
+
+    const handleLoadPreset = () => {
+        if (!selectedPresetId) return;
+        const preset = skillPresets.find(p => p.id === selectedPresetId);
+        if (preset) {
+            if (confirm(`プリセット「${preset.preset_name}」を読み込みますか？\n現在のスキルは上書きされます（一時的）。`)) {
+                setPlayer({ ...player, skills: preset.skills });
+            }
+        }
+    };
+
+    const handleDeletePreset = async () => {
+        if (!selectedPresetId) return;
+        if (!confirm('選択したプリセットを削除しますか？')) return;
+
+        const { error } = await supabase.from('user_skill_presets').delete().eq('id', selectedPresetId);
+        if (error) {
+            alert('削除に失敗しました');
+        } else {
+            fetchSkillPresets();
+            setSelectedPresetId('');
         }
     };
 
@@ -500,7 +587,7 @@ export default function PlayerDetailsPage() {
                                 {/* Player Physical & Basic Info */}
                                 <div className="flex flex-col gap-2 text-sm text-gray-600 border-t border-gray-100 pt-4 w-full mb-2">
                                     <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">身長/年齢</span> <span className="font-bold">{player.height}cm / {player.age}歳</span></div>
-                                    <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">利き足</span> <span className="font-bold">{player.foot}</span></div>
+                                    <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">利き足</span> <span className="font-bold">{player.dominant_foot}</span></div>
                                     <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">プレースタイル</span> <span className="font-bold text-blue-600">{player.playstyle}</span></div>
                                     <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">逆足頻度</span> <span className="font-bold">{player.weak_foot_usage}</span></div>
                                     <div className="flex justify-between py-1 border-b border-gray-50"><span className="text-gray-400 text-xs">逆足精度</span> <span className="font-bold">{player.weak_foot_accuracy}</span></div>
@@ -698,7 +785,25 @@ export default function PlayerDetailsPage() {
                         {isCapturing && (
                             <div className="mb-6 bg-blue-50 border border-blue-200 p-4 rounded-xl flex flex-col gap-2">
                                 <div className="flex items-center justify-between border-b border-blue-100 pb-2"><span className="font-bold text-blue-900 text-lg">Build Summary</span><span className="text-xs font-bold text-blue-600 bg-white px-2 py-1 rounded-full shadow-sm border border-blue-100">Created by eF-Sim</span></div>
-                                <div className="text-sm font-medium text-blue-800 flex flex-wrap gap-x-6 gap-y-2 pt-1"><span className="flex items-center gap-1"><TrendingUp className="w-4 h-4 text-blue-500" /> 監督補正: {managerProficiency}</span></div>
+                                <div className="text-sm font-medium text-blue-800 flex flex-col gap-2 pt-2">
+                                    {/* 監督補正 */}
+                                    <div className="flex items-center gap-2"><TrendingUp className="w-4 h-4 text-blue-500" /><span className="font-bold text-gray-600">監督補正:</span> {managerProficiency}</div>
+
+                                    {/* 個別ブースター */}
+                                    {isUniqueBoosterActive && player.custom_booster?.[0] && (
+                                        <div className="flex items-center gap-2"><Zap className="w-4 h-4 text-amber-500" /><span className="font-bold text-gray-600">個別:</span> {player.custom_booster[0].name} <span className="font-bold">(+{activeUniqueValue})</span></div>
+                                    )}
+
+                                    {/* 追加ブースター */}
+                                    {isAdditionalBoosterActive && selectedAdditionalBoosterId && (
+                                        <div className="flex items-center gap-2"><Plus className="w-4 h-4 text-green-500" /><span className="font-bold text-gray-600">追加:</span> {normalBoosters.find(b => b.id === selectedAdditionalBoosterId)?.name || 'Unknown'} <span className="font-bold">(+1)</span></div>
+                                    )}
+
+                                    {/* 監督枠 (監督Booster) */}
+                                    {isManagerBoostActive && (boostedStats[0] || boostedStats[1]) && (
+                                        <div className="flex items-start gap-2"><span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-xs border border-purple-200 whitespace-nowrap">監督枠</span><span className="flex-1">{boostedStats.filter(s => s).map(s => STAT_LABELS[s] || s).join(', ')}</span></div>
+                                    )}
+                                </div>
                             </div>
                         )}
 
@@ -750,6 +855,10 @@ export default function PlayerDetailsPage() {
                         {/* Skills Section */}
                         <div className="bg-white rounded-xl shadow border p-6">
                             <h2 className="text-xl font-bold text-gray-800 mb-6 border-b pb-4 flex items-center gap-2"><Trophy className="w-6 h-6 text-amber-500" /> 所持スキル</h2>
+
+                            {/* Skill Presets UI */}
+
+
                             <SkillSelector selectedSkills={player.skills || []} readonly session={session} />
                         </div>
                     </div>
