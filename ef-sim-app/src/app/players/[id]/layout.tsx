@@ -2,8 +2,8 @@ import { Metadata, ResolvingMetadata } from 'next';
 import { createClient } from '@supabase/supabase-js';
 
 type Props = {
-    params: { id: string };
-    children: React.ReactNode;
+    params: Promise<{ id: string }>; // Next.js 15: params is now a Promise
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 const supabase = createClient(
@@ -12,10 +12,11 @@ const supabase = createClient(
 );
 
 export async function generateMetadata(
-    { params }: Props,
+    props: Props,
     parent: ResolvingMetadata
 ): Promise<Metadata> {
-    // read route params
+    // read route params (await is required in Next.js 15)
+    const params = await props.params;
     const id = params.id;
 
     // fetch data
