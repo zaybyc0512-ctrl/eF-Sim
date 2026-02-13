@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
 import Link from 'next/link';
-import { Search, Plus, User, Database, Loader2, ChevronDown } from 'lucide-react';
+import { Search, Plus, User, Database, Loader2, ChevronDown, LogOut, Play } from 'lucide-react';
 import { GlobalMenu } from '@/components/GlobalMenu';
 import { PlayerCard } from '@/components/PlayerCard';
 import { Player } from '@/types/player';
@@ -19,7 +19,11 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // 認証・アプリ起動状態管理
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [userSession, setUserSession] = useState<Session | null>(null);
+  const [isAppStarted, setIsAppStarted] = useState(false);
 
   // 通信キャンセル用のコントローラーを保持
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -100,63 +104,130 @@ export default function Home() {
     }
   };
 
-  // 認証チェックを最初に行う
+  // 1. 認証チェックロジック（Auth Gate対応）
   useEffect(() => {
     let mounted = true;
 
-    // 1. 正規のルート: 認証状態の変化を監視
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      if (mounted) setIsAuthChecked(true);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+
+      if (session) {
+        // ログイン済み: セッションを保存し、アプリ開始は待機（中間ページ表示）
+        setUserSession(session);
+        setIsAppStarted(false);
+      } else {
+        // ゲスト: 即座にアプリを開始
+        setUserSession(null);
+        setIsAppStarted(true);
+      }
+      setIsAuthChecked(true);
     });
 
-    // 2. 救済ルート: 1秒経っても反応がなければ強制的に完了とする（既ログイン時のイベント不発対策）
+    // 救済用タイムアウト（これがないと永遠にロード画面になる可能性がある）
     const timer = setTimeout(() => {
-      if (mounted) {
+      if (mounted && !isAuthChecked) {
+        // タイムアウト時はゲストとして扱う（安全策）
+        console.warn('Auth check timed out. Proceeding as guest.');
+        setIsAppStarted(true);
         setIsAuthChecked(true);
       }
-    }, 1000);
+    }, 2000);
 
     return () => {
       mounted = false;
       clearTimeout(timer);
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // 初回のみ実行
 
+  // 2. データ取得トリガー
   useEffect(() => {
-    // 認証チェックが終わっていないなら何もしない
-    if (!isAuthChecked) return;
+    // アプリが開始されていない、または検索語入力中は実行しない
+    if (!isAppStarted) return;
 
     // 検索語がある場合はデバウンス、なければ即時実行
     const timer = setTimeout(() => {
       fetchPlayers(false);
     }, searchTerm ? 500 : 0);
 
-    // クリーンアップ関数: コンポーネントのアンマウント時や再実行時に通信をキャンセル
     return () => {
       clearTimeout(timer);
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, isAuthChecked]);
+  }, [searchTerm, isAppStarted]); // isAppStarted をトリガーにする
 
-  // 安全策: 認証チェック完了後、一定時間経ってもローディングが消えない場合の強制解除
+  // 安全策: アプリ開始後、一定時間経ってもローディングが消えない場合の強制解除
   useEffect(() => {
-    if (isAuthChecked && loading) {
+    if (isAppStarted && loading) {
       const timeout = setTimeout(() => {
         if (loading && players.length === 0) {
-          // ロードが終わらない場合、強制的にオフにする（または再取得を試みる）
           setLoading(false);
         }
-      }, 5000); // 5秒待機
+      }, 5000);
       return () => clearTimeout(timeout);
     }
-  }, [isAuthChecked, loading, players]);
+  }, [isAppStarted, loading, players]);
 
   const handleLoadMore = () => {
     fetchPlayers(true);
   };
 
+  const handleStartApp = () => {
+    setIsAppStarted(true);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.reload();
+  };
+
+  // 表示ロジック
+
+  // A. ローディング中 (認証チェック未完了)
+  if (!isAuthChecked) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-gray-500">
+        <Loader2 className="w-10 h-10 animate-spin mb-4 text-blue-500" />
+        <p>読み込んでいます...</p>
+      </div>
+    );
+  }
+
+  // B. 中間ページ (ログイン済み && アプリ未開始)
+  if (userSession && !isAppStarted) {
+    const userName = userSession.user.user_metadata?.full_name || userSession.user.email;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center animate-in zoom-in-95 duration-300">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <User className="w-8 h-8 text-blue-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">おかえりなさい！</h2>
+          <p className="text-gray-600 mb-8 break-words">{userName} さん</p>
+
+          <div className="space-y-4">
+            <button
+              onClick={handleStartApp}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow flex items-center justify-center gap-2"
+            >
+              <Play className="w-5 h-5" />
+              アプリを開始する
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-full py-3 bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 font-medium rounded-xl transition flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-5 h-5" />
+              別のアカウントでログイン
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // C. メインアプリ
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
       <header className="bg-white border-b sticky top-0 z-10 shadow-sm">
@@ -188,14 +259,14 @@ export default function Home() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {(!isAuthChecked || loading) && (
+        {(loading) && (
           <div className="flex flex-col items-center justify-center py-20 text-gray-500">
             <Loader2 className="w-10 h-10 animate-spin mb-4 text-blue-500" />
             <p>データを読み込んでいます...</p>
           </div>
         )}
 
-        {isAuthChecked && !loading && players.length === 0 && (
+        {!loading && players.length === 0 && (
           <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-300">
             <User className="w-16 h-16 mx-auto text-gray-300 mb-4" />
             <h3 className="text-lg font-medium text-gray-900">データが見つかりません</h3>
@@ -203,7 +274,7 @@ export default function Home() {
           </div>
         )}
 
-        {isAuthChecked && !loading && players.length > 0 && (
+        {!loading && players.length > 0 && (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {players.map((player) => (
