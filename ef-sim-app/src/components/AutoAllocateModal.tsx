@@ -1,14 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { X, Plus, Save, Play, Trash2, ChevronRight, Check } from 'lucide-react';
 import { calculateManagerBoost } from '@/utils/managerBoost'; // Not directly used here but good to have if needed
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface AutoAllocateModalProps {
     isOpen: boolean;

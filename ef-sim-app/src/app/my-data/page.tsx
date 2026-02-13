@@ -3,16 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient, Session } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { GlobalMenu } from '@/components/GlobalMenu';
 import { PlayerCard } from '@/components/PlayerCard';
 import { Player } from '@/types/player';
 import { Loader2, Save, User, Database } from 'lucide-react';
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function MyDataPage() {
     const router = useRouter();

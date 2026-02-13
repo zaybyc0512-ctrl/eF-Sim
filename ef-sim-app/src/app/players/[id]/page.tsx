@@ -16,10 +16,7 @@ import { GlobalMenu } from '@/components/GlobalMenu';
 import { calculateManagerBoost } from '@/utils/managerBoost';
 import { AutoAllocateModal } from '@/components/AutoAllocateModal';
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { supabase } from '@/lib/supabase';
 
 const STAT_LABELS: Record<string, string> = {
     offensive_awareness: 'オフェンスセンス',

@@ -8,10 +8,8 @@ import { GlobalMenu } from '@/components/GlobalMenu';
 import { PlayerCard } from '@/components/PlayerCard';
 import { Player } from '@/types/player';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// ▼ Supabase Client Singleton: Defined OUTSIDE the component to prevent multiple instances
+import { supabase } from '@/lib/supabase';
 
 const PAGE_SIZE = 12;
 

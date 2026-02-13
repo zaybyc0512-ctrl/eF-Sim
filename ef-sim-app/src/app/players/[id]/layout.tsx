@@ -1,15 +1,10 @@
 import { Metadata, ResolvingMetadata } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 type Props = {
     params: Promise<{ id: string }>; // Next.js 15: params is now a Promise
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export async function generateMetadata(
     props: Props,

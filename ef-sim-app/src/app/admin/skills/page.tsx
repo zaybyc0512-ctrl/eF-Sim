@@ -2,14 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2, Save, Loader2, Database } from 'lucide-react';
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 type Skill = {
     id: string;
@@ -163,8 +158,8 @@ export default function AdminSkillsPage() {
                                             <td className="px-6 py-3 font-bold text-gray-900">{s.name}</td>
                                             <td className="px-6 py-3">
                                                 <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${s.type === 'special'
-                                                        ? 'bg-amber-100 text-amber-800 border-amber-200'
-                                                        : 'bg-blue-100 text-blue-800 border-blue-200'
+                                                    ? 'bg-amber-100 text-amber-800 border-amber-200'
+                                                    : 'bg-blue-100 text-blue-800 border-blue-200'
                                                     }`}>
                                                     {s.type === 'special' ? 'Special (特殊)' : 'Normal (通常)'}
                                                 </span>
