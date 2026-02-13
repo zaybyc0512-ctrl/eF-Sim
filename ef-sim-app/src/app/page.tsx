@@ -124,7 +124,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // 認証チェックが終わっていない、または検索語の入力中は実行しない
+    // 認証チェックが終わっていないなら何もしない
     if (!isAuthChecked) return;
 
     // 検索語がある場合はデバウンス、なければ即時実行
@@ -139,6 +139,19 @@ export default function Home() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, isAuthChecked]);
+
+  // 安全策: 認証チェック完了後、一定時間経ってもローディングが消えない場合の強制解除
+  useEffect(() => {
+    if (isAuthChecked && loading) {
+      const timeout = setTimeout(() => {
+        if (loading && players.length === 0) {
+          // ロードが終わらない場合、強制的にオフにする（または再取得を試みる）
+          setLoading(false);
+        }
+      }, 5000); // 5秒待機
+      return () => clearTimeout(timeout);
+    }
+  }, [isAuthChecked, loading, players]);
 
   const handleLoadMore = () => {
     fetchPlayers(true);
