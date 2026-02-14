@@ -817,11 +817,23 @@ export default function PlayerDetailsPage() {
                                                 let finalValue: number | null = null;
                                                 let proficiencyBoostVal = 0, boosterBonusVal = 0, totalBoost = 0;
                                                 if (typeof baseValue === 'number') {
+                                                    // Step 1: 基礎育成値 (初期値 + タレントポイント)
+                                                    // calculateTalentStatは内部で99キャップしているが、これは仕様通り (素の能力は99止め)
                                                     const talentVal = calculateTalentStat(item.key, baseValue);
+
+                                                    // Step 2: 監督補正 (チームスタイル適性)
                                                     if (isManagerBoostActive) {
-                                                        if (!['weak_foot_usage', 'weak_foot_accuracy', 'form', 'injury_resistance'].includes(item.key)) proficiencyBoostVal = calculateManagerBoost(talentVal, managerProficiency);
+                                                        if (!['weak_foot_usage', 'weak_foot_accuracy', 'form', 'injury_resistance'].includes(item.key)) {
+                                                            proficiencyBoostVal = calculateManagerBoost(talentVal, managerProficiency);
+                                                        }
+                                                        // 監督のブースター (Manager Booster) は加算ブースター扱い（Step 4）
                                                         if (boostedStats.includes(item.key)) boosterBonusVal = 1;
                                                     }
+
+                                                    // Step 3: 上限キャップ適用 (ここまでで最大99)
+                                                    const cappedValue = Math.min(99, talentVal + proficiencyBoostVal);
+
+                                                    // Step 4: ブースター加算 (上限なし)
                                                     let uniqueBoosterVal = 0, additionalBoosterVal = 0;
                                                     if (isUniqueBoosterActive && player.custom_booster?.[0]) {
                                                         const unique = player.custom_booster[0];
@@ -831,8 +843,12 @@ export default function PlayerDetailsPage() {
                                                         const additional = normalBoosters.find(b => b.id === selectedAdditionalBoosterId);
                                                         if (additional && Array.isArray(additional.targets) && additional.targets.includes(item.key)) additionalBoosterVal = 1;
                                                     }
+
+                                                    // 最終計算: キャップ済み値 + 各種ブースター
+                                                    finalValue = cappedValue + boosterBonusVal + uniqueBoosterVal + additionalBoosterVal;
+
+                                                    // 表示用の合計ブースト値 (参考用)
                                                     totalBoost = proficiencyBoostVal + boosterBonusVal + uniqueBoosterVal + additionalBoosterVal;
-                                                    finalValue = Math.min(99, talentVal + totalBoost);
                                                 }
                                                 let valueClass = "text-gray-400";
                                                 if (finalValue !== null) {
